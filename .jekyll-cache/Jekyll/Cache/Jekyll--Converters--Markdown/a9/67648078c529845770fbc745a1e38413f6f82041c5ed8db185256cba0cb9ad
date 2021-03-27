@@ -1,0 +1,113 @@
+I"�+<p><strong>Back in the day, the web was very simple. In this series, we’ll explore a tiny library that can bring back yesteryear’s simplicity to the modern web, without sacrificing the parts that make the modern web feel better to use.</strong></p>
+
+<hr />
+
+<p>The web used to be pretty straight forward. URLs pointed to servers, servers mashed up their data into html, and browsers rendered that response. What a glorious era that was. Hypertext was all we needed. Simple frameworks popped up around this simple paradigm, and allowed developers to go from spending months on basic functionalities to spending hours to create relatively complex projects. More time was spent on the <em>business logic</em>, on <em>application design</em>, instead of spending untold man hours wiring up scripts to databases and concatenating strings of html together.</p>
+
+<p>I’m not going to tell you we should have stopped there. The web grew, and evolved, obviously, and we needed javascript for things.</p>
+
+<p>That’s where our story gets dark.</p>
+
+<p>Javascript is out of control now. Somehow we’ve decided it’s acceptable to throw massive applications at our users, force their devices to run those applications, and make constant, ever-increasing quantities of network requests while the application is in use. Somehow we’ve decided that in order to generate HTML, we have to use JSON (what?), make dozens of network requests, discard most of the data that we get in those requests, have an increasingly opaque black box of a javascript framework turn that JSON into HTML (via an arcane arrangement of multi-level state management, CSS as a new domain-specific language, and a new client-only url routing layer) and then hopefully correctly patch that new HTML into the DOM efficiently. (Spoiler alert: <a href="https://kentcdodds.com/blog/fix-the-slow-render-before-you-fix-the-re-render">it’s not efficient</a>.)</p>
+
+<p>I haven’t even started in on the complicated nightmare of javascript build systems, especially that Lovecraftian horror known as Webpack, or the security vulnerability waiting to destroy your business in token-based authentication. Or the fact that the JSON pre-requisite of all of this means you have to serialize your data in order to serve it as JSON, which is not an easy problem to solve. Overserving, underserving, JSON has its own security vulnerabilities…</p>
+
+<p>Did everyone collectively forget that we could render HTML on the server? Much faster, more consistently, adjacent to your actual application state, and without shipping any unnecessary data to your user’s devices?</p>
+
+<p><strong>But without javascript, we have to reload the page on every action!</strong></p>
+
+<p>Sure, I understand that this is an initial motivation for these complex javascript frameworks. That is a very reasonable thing to expect of modern web applications. But we don’t need to do all of the bespoke javascript nonsense to solve that problem.</p>
+
+<p><a href="https://htmx.org">Enter Htmx.</a></p>
+
+<p>This is only one implementation of the idea that simple <em>is</em> the future of web development. The premise is simple.</p>
+
+<ol>
+  <li>Issue ajax requests from any user event (clicking links, submitting forms, clicking any element, issuing keystrokes)</li>
+  <li>Let the server generate the HTML that represents the new application state for that request.</li>
+  <li>Send <strong>that html</strong> in the response.</li>
+  <li>Shove that element in the DOM where it’s supposed to go.</li>
+</ol>
+
+<p>That’s it. Dead simple. Every backend framework since the beginning of the web has allowed you to generate HTML. It’s the fundamental functionality of a web application framework. It’s been perfected over the last decade and a half. Why not let that application do what it’s <em>meant to do</em>? Your application state (probably a database) is directly connected to your application. You probably even use an ORM, and a templating system. It’s all batteries included with your web framework, so <em>stop fighting with it</em> and embrace it.</p>
+
+<hr />
+
+<p>In this series, I’m going to show you how to embrace your web framework. I’m going to use Python and Django, but I guarantee this idea is compatible with whatever backend framework you might want to use, because it’s <em>just HTML</em>.</p>
+
+<p>I’m not going to walk you through the steps of setting up a new Django project. If you want to follow along, and play with it, the <a href="https://docs.djangoproject.com/en/3.1/intro/tutorial01/">Django tutorial</a> is excellent. Get that started, then come back.</p>
+
+<p>Let’s start with the most basic of trivial examples.</p>
+
+<p>Let’s create a pretty basic view. It’s going to serve a little template with a button.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># views.py
+</span><span class="k">def</span> <span class="nf">home</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">"home.html"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># urls.py
+</span>
+<span class="n">urlpatterns</span> <span class="o">=</span> <span class="p">[</span>
+	<span class="n">path</span><span class="p">(</span><span class="s">''</span><span class="p">,</span> <span class="n">views</span><span class="o">.</span><span class="n">home</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">'home'</span><span class="p">)</span>
+<span class="p">]</span>
+</code></pre></div></div>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- home.html --&gt;</span>
+<span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;&lt;/head&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+    <span class="nt">&lt;button&gt;</span>Click Me To Get a Blog Post<span class="nt">&lt;/button&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre></div></div>
+
+<p><em>Disclaimer:</em> I’m not showing you everything. Again, this isn’t a django tutorial. I expect you to pretty much grasp what’s going on here without me showing you every import and line of code.</p>
+
+<p>With this, if you’ve set up your project correctly, you can go to your new homepage and see a button. It doesn’t do anything right now. Let’s fix that. First, we’ll set up a new view that just returns a blog post.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># views.py
+</span><span class="k">def</span> <span class="nf">blog_post</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">"blog_post.html"</span><span class="p">)</span>
+
+<span class="c1"># urls.py
+</span><span class="n">urlpatterns</span> <span class="o">=</span> <span class="p">[</span>
+	<span class="n">path</span><span class="p">(</span><span class="s">''</span><span class="p">,</span> <span class="n">views</span><span class="o">.</span><span class="n">home</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">'home'</span><span class="p">),</span>
+	<span class="n">path</span><span class="p">(</span><span class="s">'blog-post'</span><span class="p">,</span> <span class="n">views</span><span class="o">.</span><span class="n">blog_post</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">'blog-post'</span><span class="p">),</span>
+<span class="p">]</span>
+</code></pre></div></div>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- blog_post.html --&gt;</span>
+<span class="nt">&lt;section</span> <span class="na">id=</span><span class="s">"blog-post"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;h1&gt;</span>This is the title of my blog post!<span class="nt">&lt;/h1&gt;</span>
+    <span class="nt">&lt;p&gt;</span>This is the content of my blog post.<span class="nt">&lt;/h1&gt;</span>
+<span class="nt">&lt;/section&gt;</span>
+</code></pre></div></div>
+
+<p>Now if you go to your new blog-post url, you should see the blog post. Nothing new so far. So now, let’s wire this up with htmx. Let’s start by adding the script tag to the home.html template to make sure htmx is available via it’s CDN, and then we can start adding a little htmx magic via directives.</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- home.html --&gt;</span>
+<span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+  <span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"https://unpkg.com/htmx.org@1.3.2"</span><span class="nt">&gt;&lt;/script&gt;</span>
+<span class="nt">&lt;/head&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+  <span class="nt">&lt;button</span>
+    <span class="na">hx-get=</span><span class="s">"/blog-post"</span>
+    <span class="na">hx-target=</span><span class="s">"#blog-post"</span>
+    <span class="nt">&gt;</span>
+    Click Me To Get a Blog Post
+  <span class="nt">&lt;/button&gt;</span>
+  <span class="nt">&lt;section</span> <span class="na">id=</span><span class="s">"blog-post"</span><span class="nt">&gt;&lt;/section&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre></div></div>
+
+<p>So, you can check out the <a href="https://htmx.org/docs/">Htmx documentation</a> to see what I’ve done here, but the general idea should be obvious; issue a GET request to <code class="highlighter-rouge">/blog-post</code>, then take the response and replace the css selector <code class="highlighter-rouge">#blog-post</code> with the response.</p>
+
+<p><img src="/assets/images/blogpostvid.gif" alt="It's really this easy." /></p>
+
+<p>If you’re coding along, go ahead and try it. It feels almost magical. We’ve done in two simple, semantic directives what takes the javascript world a massive build pipeline, dozens of megabytes of application code, hundreds of megabytes if not gigabytes of npm dependencies, massive headaches of state management… Do I need to go on?</p>
+
+<p>I know this is only a trivial example. I know it’s so trivial as to be almost meaningless. But that’s because there’s… not really any additional complexity in this paradigm. Make a request, get the response, put it somewhere in the DOM. You’d be really surprised at <a href="https://htmx.org/examples/">what can be done</a> this way. In the next parts of this series, we’ll explore what some of those are.</p>
+:ET
