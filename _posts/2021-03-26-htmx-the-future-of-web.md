@@ -25,7 +25,7 @@ Sure, I understand that this is an initial motivation for these complex javascri
 
 [Enter Htmx.](https://htmx.org)
 
-This is only one implementation of the idea that simple *is* the future of web development. The premise is simple.
+This is only one implementation of the idea that simply *is* the future of web development. The premise is simple.
 
 1. Issue ajax requests from any user event (clicking links, submitting forms, clicking any element, issuing keystrokes)
 2. Let the server generate the HTML that represents the new application state for that request.
