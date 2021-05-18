@@ -67,6 +67,41 @@ There is a better way to provide your test doubles, and it uses the *principle* 
 
 I want to put a **big massive disclaimer** here, because I don't want people to get carried away. I am not explicitly talking about Dependency Injection frameworks or tools. Injection is a technique for accomplishing inversion, just as earlier we said that mocks were a technique for accomplishing test doubles. Please do not call to mind all the dependency injection tools (i.e. Angular) that you've used in the past. Chances are, it didn't feel that good, and became cumbersome and tedious. We will get into that more a little bit later.
 
+Let's talk about doubles, but the implementation kind instead of the principle. When I talk, for the rest of the article, about creating *doubles*, this is the kind to which I am referring.
+
+```
+def get_website(url):
+    return requests.get(url)
+
+def fake_get_website(url):
+    return f'Thank you for visiting {url}'
+```
+
+In this case, we have an 'actual' function that returns the HTTP respone to a url, and then a deliberately named `fake` function that just returns some text with that URL on it. You can think of this as a `mock` in the sense that we are replacing unpredictable runtime behaviour with a deterministic, preset value instead.
+
+That's all a double is; a copy of your 'real' functionality that returns a fake predetermined value. The there half of this question is what dependency injection is; how do I use the correct version in each context?
+
+Well, the easiest way, and the most preferrable way when it's possible, is simply passing them in locally.
+
+```python
+def fetch_url(url, get_website):
+    get_website(url)
+```
+
+Now we're actually passing the function or class directly to the function that needs it. That function is what's called on our data. This is very easy to write a test for:
+
+```python
+def test_fetch_url():
+    url = 'https://example.com'
+    fake_fetcher = lambda url: f'Hello {url}'
+    assert fetch_url(url, fake_fetcher) == 'Hello https://example.com'
+```
+
+It doesn't get any simpler than this. Pass your 'boundary module', or the code that does what the boundary does, directly to your application logic as a parameter. (I've heard this referred to recently as 'take your functions to your data', which is quite catchy.)
+
+This is dependency inversion, by the way. Instead of explicitly declaring inside the function what the system boundary is, tightly coupling the two functions together, we pass it in as a parameter, allowing anything by the `fetcher` so long as it fulfills the contract.
+
+
 <!--
 The web used to be pretty straight forward. URLs pointed to servers, servers mashed up their data into html, and browsers rendered that response. What a glorious era that was. Hypertext was all we needed. Simple frameworks popped up around this simple paradigm, and allowed developers to go from spending months on basic functionalities to spending hours to create relatively complex projects. More time was spent on the *business logic*, on *application design*, instead of spending untold man hours wiring up scripts to databases and concatenating strings of html together.
 
